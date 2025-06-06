@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OtterVoice - 你的声音，不经第三方。</title>
+    <meta name="description" content="OtterVoice 是一款为隐私与音质而生、开源的P2P桌面语音聊天应用。">
+
+    <!-- Google Fonts: Poppins & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+
+    <!-- Icons Library (Boxicons) -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+
+    <!-- Animation On Scroll Library (AOS) CSS -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <!-- Your Custom CSS -->
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+    <!-- ======== PARTICLES BACKGROUND CONTAINER ======== -->
+    <div id="particles-js"></div>
+
+    <!-- ======== HEADER ======== -->
+    <header class="header">
+        <nav class="nav container">
+            <a href="assets\images\image (2).svg" class="nav__logo">
+                <!-- 你可以在这里放一个SVG Logo -->
+                OtterVoice
+            </a>
+        </nav>
+    </header>
+
+    <main class="main">
+        <!-- ======== HERO SECTION ======== -->
+        <section class="hero section" id="hero">
+            <div class="hero__container container">
+                <div class="hero__content" data-aos="fade-up">
+                    <h1 class="hero__title">你的声音，永远一尘不染。</h1>
+                    <p class="hero__subtitle">
+                        一款为隐私与音质而生、开源的P2P桌面语音聊天应用
+                    </p>
+                    <a href="assets\downloads\OtterVoice.exe" class="btn btn--primary">立即下载 Windows 版 v3.0</a>
+                </div>
+                <div class="hero__image" data-aos="fade-up" data-aos-delay="200">
+                    <!-- 提示: 将 'assets/images/app-mockup.png' 替换为你的应用截图 -->
+                    <img src="https://i.imgur.com/2lTzC5p.png" alt="OtterVoice App Mockup" class="hero__img">
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== FEATURES SECTION ======== -->
+        <section class="features section" id="features">
+            <div class="container" data-aos="fade-up">
+                <h2 class="section__title">纯粹，只因专注核心</h2>
+                <div class="features__grid">
+                    <!-- Feature Card 1 -->
+                    <div class="feature__card" data-aos="fade-up" data-aos-delay="100">
+                        <i class='bx bxs-lock-alt feature__icon'></i>
+                        <h3 class="feature__title">绝对隐私</h3>
+                        <p class="feature__description">通过P2P直连与端到端加密，我们不存储、不监听你的任何通话数据。</p>
+                    </div>
+                    <!-- Feature Card 2 -->
+                    <div class="feature__card" data-aos="fade-up" data-aos-delay="200">
+                        <i class='bx bxs-zap feature__icon'></i>
+                        <h3 class="feature__title">强大连接</h3>
+                        <p class="feature__description">内置智能NAT穿透技术，即使在复杂网络下也能轻松建立连接。</p>
+                    </div>
+                    <!-- Feature Card 3 -->
+                    <div class="feature__card" data-aos="fade-up" data-aos-delay="300">
+                        <i class='bx bxs-magic-wand feature__icon'></i>
+                        <h3 class="feature__title">极简操作</h3>
+                        <p class="feature__description">无需注册，无需好友。交换一个临时特征码，即可开始通话。</p>
+                    </div>
+                    <!-- Feature Card 4 -->
+                    <div class="feature__card" data-aos="fade-up" data-aos-delay="400">
+                        <i class='bx bxl-github feature__icon'></i>
+                        <h3 class="feature__title">开源透明</h3>
+                        <p class="feature__description">代码完全开源，安全可靠看得见。欢迎开发者共同监督与贡献。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== HOW IT WORKS SECTION ======== -->
+        <section class="how-it-works section" id="how-it-works">
+            <div class="container" data-aos="fade-up">
+                <h2 class="section__title">三步开启私密通话</h2>
+                <div class="steps__container">
+                    <!-- Step 1 -->
+                    <div class="step" data-aos="fade-right">
+                        <div class="step__content">
+                            <span class="step__number">01</span>
+                            <h3 class="step__title">生成 & 复制特征码</h3>
+                            <p class="step__description">在应用内点击一次，即可生成包含你网络信息的专属一次性特征码。</p>
+                        </div>
+                        <div class="step__image">
+                             <!-- 提示: 替换为你的截图 -->
+                            <img src="https://i.imgur.com/aC3tJ8e.png" alt="Generate Feature Code">
+                        </div>
+                    </div>
+                    <!-- Step 2 -->
+                    <div class="step step--reversed" data-aos="fade-left">
+                        <div class="step__content">
+                            <span class="step__number">02</span>
+                            <h3 class="step__title">安全分享</h3>
+                            <p class="step__description">通过你信任的任何渠道，将特征码发送给你的通话对象。</p>
+                        </div>
+                         <div class="step__image">
+                             <!-- 提示: 替换为你的截图 -->
+                            <img src="https://i.imgur.com/YwO6T5h.png" alt="Share Securely">
+                        </div>
+                    </div>
+                     <!-- Step 3 -->
+                    <div class="step" data-aos="fade-right">
+                        <div class="step__content">
+                            <span class="step__number">03</span>
+                            <h3 class="step__title">粘贴 & 呼叫</h3>
+                            <p class="step__description">对方将收到的代码粘贴到应用内，点击“呼叫”，通话即刻建立。</p>
+                        </div>
+                         <div class="step__image">
+                             <!-- 提示: 替换为你的截图 -->
+                            <img src="https://i.imgur.com/L5E2bM8.png" alt="Paste and Call">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== DEVELOPERS SECTION ======== -->
+        <section class="developers section" id="developers">
+            <div class="developers__container container" data-aos="fade-up">
+                <div class="developers__text">
+                    <h2 class="section__title--left">为好奇者与创造者而生</h2>
+                    <p>OtterVoice 完全开源，以 Python 构建。我们痴迷于简洁的架构、健壮的代码和真正的用户隐私。欢迎在 GitHub 上审查我们的每一行代码，或与我们一同构建未来。</p>
+                    <a href="https://github.com/DamoyY/OtterVoice" class="btn btn--secondary">
+                        <i class='bx bxl-github'></i> 查看 GitHub 源码
+                    </a>
+                </div>
+                <div class="developers__code">
+                    <div class="code-editor">
+                        <div class="code-header">
+                            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+                            OtterVoice.py
+                        </div>
+                        <pre><code><span class="code-keyword">class</span> <span class="code-class">VoiceChatApp</span>:
+    <span class="code-keyword">def</span> <span class="code-function">__init__</span>(<span class="code-self">self</span>):
+        <span class="code-self">self</span>.state = AppState.IDLE
+        
+        <span class="code-comment"># Decouple UI from logic</span>
+        <span class="code-self">self</span>.ui = UIManager(...)
+        
+        <span class="code-comment"># Handle P2P connection</span>
+        <span class="code-self">self</span>.net = NetworkManager(...)
+        
+        <span class="code-comment"># ...and let the magic happen.</span>
+</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+    </main>
+
+    <!-- ======== FOOTER ======== -->
+    <footer class="footer">
+        <div class="footer__container container">
+            <p class="footer__copyright">© 2024 OtterVoice. All Rights Reserved.</p>
+            <div class="footer__socials">
+                <a href="https://github.com/DamoyY/OtterVoice" class="footer__social-link" aria-label="GitHub">
+                    <i class='bx bxl-github'></i>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ======== JAVASCRIPT LIBRARIES ======== -->
+    
+    <!-- Particles.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    
+    <!-- Animation On Scroll Library (AOS) JS -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+
+    <!-- Your Custom JS -->
+    <script src="assets/js/script.js"></script>
+</body>
+</html>
