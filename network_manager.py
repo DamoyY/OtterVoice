@@ -305,7 +305,7 @@ class NetworkManager:
         self._cleanup_socket()
 
         if self.receive_thread and self.receive_thread.is_alive():
-            if prev_is_listening: # Only log if it was actually running
+            if prev_is_listening:
                 self.log_callback("正在等待接收线程停止...")
             try:
                 self.receive_thread.join(timeout=0.5) 

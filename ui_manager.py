@@ -10,7 +10,6 @@ from config import *
 import config as config_module
 from utils import resource_path
 
-# Windows specific font loading
 gdi32 = ctypes.WinDLL('gdi32')
 gdi32.AddFontResourceW.argtypes = (wintypes.LPCWSTR,)
 gdi32.AddFontResourceW.restype = wintypes.INT

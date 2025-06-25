@@ -278,7 +278,7 @@ class VoiceChatApp:
 
     def _update_ui_for_call_terminating_self_initiated_state(self, peer_address_tuple):
         peer_display_name = self._get_peer_display_name_for_ui(peer_address_tuple)
-        status_msg = f"{STATUS_LOCALLY_HUNG_UP} ({peer_display_name})" # What UI will actually show via _transition_to_call_ended_state
+        status_msg = f"{STATUS_LOCALLY_HUNG_UP} ({peer_display_name})"
         
         can_call_again = self._is_peer_info_valid(self.ui_manager.get_peer_ip_entry(), self.ui_manager.get_peer_port_entry()) and \
                          self.audio_manager.is_initialized() and self.is_running_main_op
@@ -296,13 +296,13 @@ class VoiceChatApp:
     
     def _update_ui_for_call_rejecting_state(self, peer_address_tuple):
         peer_display_name = self._get_peer_display_name_for_ui(peer_address_tuple)
-        status_msg = f"已拒绝来自 {peer_display_name} 的呼叫" # What UI will actually show via _transition_to_call_ended_state
+        status_msg = f"已拒绝来自 {peer_display_name} 的呼叫"
         
         can_call_again = self._is_peer_info_valid(self.ui_manager.get_peer_ip_entry(), self.ui_manager.get_peer_port_entry()) and \
                          self.audio_manager.is_initialized() and self.is_running_main_op
         return {
             "status_message": status_msg,
-            "status_color": COLOR_STATUS_WARNING, # Rejection color
+            "status_color": COLOR_STATUS_WARNING,
             "call_btn_text": "呼叫",
             "call_btn_fg_color": self.ui_manager.default_button_color,
             "call_btn_hover_color": self.ui_manager.default_button_hover_color,
@@ -331,7 +331,7 @@ class VoiceChatApp:
 
     def _update_ui_for_getting_public_ip_failed_state(self, reason, peer_address_tuple, associated_data):
         _reason = reason if reason else "公网地址获取失败"
-        status_message = _reason # Default base message
+        status_message = _reason
         call_btn_state = "disabled"
 
         if self.audio_manager.is_initialized():
@@ -346,13 +346,13 @@ class VoiceChatApp:
             status_message = "PyAudio错误,无法启动"
             call_btn_state = "disabled"
         
-        if self.audio_manager.is_initialized() and self.network_manager.local_port: # i.e., basic network is up
-            status_message = STATUS_WAITING_FOR_REMOTE_INFO # Trigger multipart display
+        if self.audio_manager.is_initialized() and self.network_manager.local_port:
+            status_message = STATUS_WAITING_FOR_REMOTE_INFO
 
         self._generate_and_update_feature_code()
         return {
-            "status_message": status_message, # Pass the message, UIManager handles multipart
-            "status_color": COLOR_STATUS_ERROR, # Base color, parts might differ
+            "status_message": status_message,
+            "status_color": COLOR_STATUS_ERROR,
             "peer_entry_enabled": True, "parse_btn_enabled": True,
             "call_btn_state": call_btn_state,
             "local_ip_text": self.network_manager.public_ip or "获取失败",
@@ -360,8 +360,8 @@ class VoiceChatApp:
         }
 
     def _update_ui_for_idle_state(self, reason, peer_address_tuple, associated_data):
-        status_message = STATUS_WAITING_FOR_REMOTE_INFO # This will be handled by UIManager
-        status_color = COLOR_STATUS_INFO # Default, UIManager might override parts
+        status_message = STATUS_WAITING_FOR_REMOTE_INFO
+        status_color = COLOR_STATUS_INFO
         call_btn_state = "disabled"
 
         _ip = self.ui_manager.get_peer_ip_entry()
@@ -373,7 +373,7 @@ class VoiceChatApp:
         
         self._generate_and_update_feature_code()
         return {
-            "status_message": status_message, "status_color": status_color, # Pass the base message
+            "status_message": status_message, "status_color": status_color,
             "peer_entry_enabled": True, "parse_btn_enabled": True,
             "call_btn_state": call_btn_state,
             "local_ip_text": self.network_manager.public_ip or "N/A (STUN失败)",
@@ -431,7 +431,7 @@ class VoiceChatApp:
 
         if self.app_state == AppState.CALL_ENDED_LOCALLY_HUNG_UP:
             status_color = COLOR_STATUS_SUCCESS
-            if not reason and peer_address_tuple: # Default message if reason is empty
+            if not reason and peer_address_tuple:
                  status_message = f"{STATUS_LOCALLY_HUNG_UP} ({self._get_peer_display_name_for_ui(peer_address_tuple)})"
             elif not reason:
                  status_message = STATUS_LOCALLY_HUNG_UP
@@ -439,8 +439,8 @@ class VoiceChatApp:
             status_color = COLOR_STATUS_WARNING
         elif self.app_state == AppState.CALL_ENDED_PEER_REJECTED:
             status_color = COLOR_STATUS_WARNING
-            if not reason and peer_address_tuple: # Default message
-                status_message = f"已拒绝来自 {self.get_peer_display_name_for_ui(peer_address_tuple)} 的呼叫" # Or a more general rejection message
+            if not reason and peer_address_tuple:
+                status_message = f"已拒绝来自 {self._get_peer_display_name_for_ui(peer_address_tuple)} 的呼叫"
             elif not reason:
                 status_message = "呼叫被拒绝"
         elif self.app_state == AppState.CALL_ENDED_ERROR or self.app_state == AppState.CALL_ENDED_REQUEST_FAILED:
@@ -590,7 +590,7 @@ class VoiceChatApp:
             AppState.CALL_INITIATING_REQUEST, AppState.CALL_OUTGOING_WAITING_ACCEPTANCE,
             AppState.IN_CALL
         ]:
-            self.hang_up_call(initiated_by_peer=False, error_occurred=False, reason="用户界面操作挂断")
+            self.handle_local_hangup_action()
         elif current_action_state in [
             AppState.IDLE, AppState.GETTING_PUBLIC_IP_FAILED,
             AppState.CALL_ENDED_LOCALLY_HUNG_UP, AppState.CALL_ENDED_PEER_HUNG_UP,
@@ -670,7 +670,7 @@ class VoiceChatApp:
         if self.app_state == AppState.CALL_INCOMING_RINGING:
             if not self.peer_full_address: 
                 self.log_message("CRITICAL: 尝试接听但 peer_full_address 未设置。", is_error=True)
-                self._transition_to_call_ended_state(AppState.CALL_ENDED_ERROR, "内部错误 (接听时无对方地址)", None)
+                self.handle_call_error("内部错误 (接听时无对方地址)", None)
                 return
 
             self.log_message(f"用户接听了来自 {self.peer_full_address} 的呼叫。")
@@ -682,12 +682,11 @@ class VoiceChatApp:
         if self.app_state == AppState.CALL_INCOMING_RINGING:
             if not self.peer_full_address:
                 self.log_message("CRITICAL: 尝试拒绝但 peer_full_address 未设置。", is_error=True)
-                self._transition_to_call_ended_state(AppState.CALL_ENDED_ERROR, "内部错误 (拒绝时无对方地址)", None)
+                self.handle_call_error("内部错误 (拒绝时无对方地址)", None)
                 return
             
             self.log_message(f"用户拒绝了来自 {self.peer_full_address} 的呼叫。")
-            self.hang_up_call(initiated_by_peer=False, error_occurred=False, 
-                              reason=f"用户拒绝来自 {self.peer_full_address[0]} 的呼叫")
+            self.handle_local_hangup_action()
         else:
             self.log_message(f"拒绝按钮按下，但应用状态 ({self.app_state.name}) 不正确。忽略。", is_warning=True)
 
@@ -757,11 +756,11 @@ class VoiceChatApp:
             )
 
     def _proceed_with_call_setup(self, is_accepting_call=False):
-            if not is_accepting_call: # 我方呼叫，收到ACK后进入此路径
+            if not is_accepting_call:
                 if self.app_state in [AppState.CALL_OUTGOING_WAITING_ACCEPTANCE, AppState.IN_CALL]:
                     self.log_message(f"_proceed_with_call_setup (outgoing call) called while state is {self.app_state.name}. Potential repeat. Ignoring.", is_warning=True)
                     return
-            else: # 对方呼叫，我方接听后进入此路径
+            else:
                 if self.app_state == AppState.IN_CALL:
                     self.log_message(f"_proceed_with_call_setup (incoming call) called while already IN_CALL. Potential repeat. Ignoring.", is_warning=True)
                     return
@@ -787,16 +786,16 @@ class VoiceChatApp:
                 self._transition_to_call_ended_state(AppState.CALL_ENDED_ERROR, f"内部呼叫错误 (无对方地址 {reason_suffix})")
                 return
 
-            self.peer_wants_to_receive_audio = True # 通话开始时，默认对方是愿意接收音频的
-            self.my_speaker_switch_is_on = True     # 通话开始时，默认我方扬声器开关是开启的
+            self.peer_wants_to_receive_audio = True
+            self.my_speaker_switch_is_on = True
 
             if hasattr(self, 'ui_manager') and hasattr(self.ui_manager, 'switch_speaker_mute') and self.ui_manager.switch_speaker_mute.winfo_exists():
-                current_switch_state_int = self.ui_manager.switch_speaker_mute.get() # 0 or 1
+                current_switch_state_int = self.ui_manager.switch_speaker_mute.get()
                 
-                if self.my_speaker_switch_is_on and current_switch_state_int == 0: # 内部是开，UI是关
+                if self.my_speaker_switch_is_on and current_switch_state_int == 0:
                     self.ui_manager.switch_speaker_mute.select()
                     self.log_message("同步UI: 扬声器开关已从视觉关闭状态切换为开启状态以匹配内部状态。")
-                elif not self.my_speaker_switch_is_on and current_switch_state_int == 1: # 内部是关，UI是开
+                elif not self.my_speaker_switch_is_on and current_switch_state_int == 1:
                     self.ui_manager.switch_speaker_mute.deselect()
                     self.log_message("同步UI: 扬声器开关已从视觉开启状态切换为关闭状态以匹配内部状态。")
 
@@ -809,7 +808,7 @@ class VoiceChatApp:
             self.audio_manager.clear_played_sequence_numbers()
 
             if not self.audio_manager.open_input_stream():
-                self.hang_up_call(initiated_by_peer=False, error_occurred=True, reason="麦克风打开失败")
+                self.handle_call_error("麦克风打开失败", self.peer_full_address)
                 return
 
             if self.send_thread is None or not self.send_thread.is_alive():
@@ -968,93 +967,92 @@ class VoiceChatApp:
             cancel_active_hangup_retries=cancel_active_hangup_retries
         )
 
-    def hang_up_call(self, initiated_by_peer=False, error_occurred=False, reason="", is_app_closing=False):
-        current_state_on_hangup_call = self.app_state
-        self.log_message(f"hang_up_call: by_peer={initiated_by_peer}, error={error_occurred}, reason='{reason}', "
-                         f"closing={is_app_closing}, current_state={current_state_on_hangup_call.name}")
+    def _terminate_call_session(self, final_state: AppState, reason: str, peer_address, *, send_hangup: bool, is_rejection: bool = False):
+        self.log_message(f"Terminating call session. Final State: {final_state.name}, Reason: '{reason}', Send Hangup: {send_hangup}")
 
+        self._cleanup_active_call_resources()
+
+        self.indicator_blinker_timer.cancel()
         if self.call_request_ack_timer_id is not None:
             self.master.after_cancel(self.call_request_ack_timer_id)
             self.call_request_ack_timer_id = None
-        self.indicator_blinker_timer.cancel()
 
-        target_address_for_this_hangup = self._determine_hangup_target_address(current_state_on_hangup_call)
+        if send_hangup and peer_address:
+            log_prefix = "已拒绝" if is_rejection else STATUS_LOCALLY_HUNG_UP
+            self._send_hangup_and_begin_ack_wait(
+                target_address=peer_address,
+                reason_for_log_and_ui_prefix=log_prefix,
+                is_rejection_context=is_rejection
+            )
+            self._transition_to_call_ended_state(
+                final_state, reason, peer_address,
+                cleanup_resources=False, # Already done above
+                cancel_active_hangup_retries=False # IMPORTANT
+            )
+        else:
+            self._transition_to_call_ended_state(
+                final_state, reason, peer_address,
+                cleanup_resources=False, # Already done above
+                cancel_active_hangup_retries=True # IMPORTANT
+            )
 
-        if is_app_closing:
-            if target_address_for_this_hangup and self._is_state_active_or_pending_call(current_state_on_hangup_call):
-                self.log_message("App closing during active/pending call. Attempting one-time HANGUP signal.")
-                self._cleanup_active_call_resources() 
-                self.network_manager.send_packet(SignalType.HANGUP_SIGNAL.value, target_address_for_this_hangup)
+    def handle_local_hangup_action(self):
+        current_state = self.app_state
+        self.log_message(f"Local hangup action initiated in state: {current_state.name}")
+
+        target_address = self._determine_hangup_target_address(current_state)
+        if not target_address:
+            self.log_message("Local hangup action, but no target peer. Resetting state.", is_warning=True)
+            self._simple_reset_call_vars_and_set_state("操作取消/无通话对象", AppState.IDLE)
             return
 
-        if initiated_by_peer:
-            peer_ip_display = target_address_for_this_hangup[0] if target_address_for_this_hangup else "对方"
-            final_reason = reason if reason else f"{STATUS_PEER_HUNG_UP} ({peer_ip_display})"
-            final_state = AppState.CALL_ENDED_PEER_HUNG_UP
-            if STATUS_PEER_REJECTED in reason: 
-                final_state = AppState.CALL_ENDED_PEER_REJECTED
-            
-            self._transition_to_call_ended_state(final_state, final_reason, target_address_for_this_hangup,
-                                               cleanup_resources=True, cancel_active_hangup_retries=True)
-            return
+        self._play_notification_sound(SOUND_PEER_HANGUP)
 
-        if error_occurred:
-            peer_ip_display = target_address_for_this_hangup[0] if target_address_for_this_hangup else "对方"
-            final_reason = reason if reason else f"通话因错误终止 ({peer_ip_display})"
-            final_state = AppState.CALL_ENDED_ERROR
-            if "超时" in reason or "呼叫请求失败" in reason or "发送呼叫请求错误" in reason:
-                 final_state = AppState.CALL_ENDED_REQUEST_FAILED
-            
-            self._transition_to_call_ended_state(final_state, final_reason, target_address_for_this_hangup,
-                                               cleanup_resources=True, cancel_active_hangup_retries=True)
-            return
+        is_rejection = (current_state == AppState.CALL_INCOMING_RINGING)
+        if is_rejection:
+            reason = f"已拒绝来自 {target_address[0]} 的呼叫"
+            final_state = AppState.CALL_ENDED_PEER_REJECTED
+        else:
+            reason = f"{STATUS_LOCALLY_HUNG_UP} ({target_address[0]})"
+            final_state = AppState.CALL_ENDED_LOCALLY_HUNG_UP
 
-        if not target_address_for_this_hangup:
-            self.log_message("本地主动挂断/操作，但无明确通话对象或当前状态不涉及通话。清理并返回IDLE/Ended状态。", is_warning=True)
-            final_reason = reason if reason else "操作取消/无通话对象"
-            target_final_state = AppState.IDLE
-            if current_state_on_hangup_call.name.startswith("CALL_ENDED_") and \
-               current_state_on_hangup_call != AppState.CALL_ENDED_APP_CLOSING:
-                target_final_state = current_state_on_hangup_call
-            self._transition_to_call_ended_state(target_final_state, final_reason, None,
-                                               cleanup_resources=True, cancel_active_hangup_retries=True)
-            return
-
-        if current_state_on_hangup_call in [
-            AppState.IN_CALL, 
-            AppState.CALL_OUTGOING_WAITING_ACCEPTANCE,
-            AppState.CALL_INITIATING_REQUEST, 
-            AppState.CALL_INCOMING_RINGING # This is when user rejects an incoming call
-        ]:
-            self.log_message(f"用户在状态 {current_state_on_hangup_call.name} 时主动操作结束通话/拒绝。播放挂断提示音。")
-            self._play_notification_sound(SOUND_PEER_HANGUP)
-
-        is_rejection_context = (current_state_on_hangup_call == AppState.CALL_INCOMING_RINGING)
-        
-        final_ui_reason_for_display = ""
-        final_ui_target_state = AppState.IDLE 
-
-        if is_rejection_context:
-            final_ui_reason_for_display = f"已拒绝来自 {target_address_for_this_hangup[0]} 的呼叫"
-            final_ui_target_state = AppState.CALL_ENDED_PEER_REJECTED 
-        else: 
-            final_ui_reason_for_display = f"{STATUS_LOCALLY_HUNG_UP} ({target_address_for_this_hangup[0]})"
-            final_ui_target_state = AppState.CALL_ENDED_LOCALLY_HUNG_UP
-        
-        log_prefix_for_ack_wait = "已拒绝" if is_rejection_context else STATUS_LOCALLY_HUNG_UP
-        self._send_hangup_and_begin_ack_wait(
-            target_address=target_address_for_this_hangup,
-            reason_for_log_and_ui_prefix=log_prefix_for_ack_wait, 
-            is_rejection_context=is_rejection_context
+        self._terminate_call_session(
+            final_state, reason, target_address,
+            send_hangup=True, is_rejection=is_rejection
         )
 
-        self._transition_to_call_ended_state(
-            final_ui_target_state,
-            final_ui_reason_for_display,
-            target_address_for_this_hangup,
-            cleanup_resources=True, 
-            cancel_active_hangup_retries=False 
+    def handle_peer_hangup(self, addr, reason: str):
+        self.log_message(f"Peer hangup received from {addr}. Reason: '{reason}'")
+        self._play_notification_sound(SOUND_PEER_HANGUP)
+
+        final_state = AppState.CALL_ENDED_PEER_HUNG_UP
+        if STATUS_PEER_REJECTED in reason:
+            final_state = AppState.CALL_ENDED_PEER_REJECTED
+
+        self._terminate_call_session(
+            final_state, reason, addr, send_hangup=False
         )
+
+    def handle_call_error(self, reason: str, peer_addr):
+        self.log_message(f"Call error occurred. Reason: '{reason}', Peer: {peer_addr}", is_error=True)
+
+        final_state = AppState.CALL_ENDED_ERROR
+        if "超时" in reason or "失败" in reason:
+            final_state = AppState.CALL_ENDED_REQUEST_FAILED
+
+        self._terminate_call_session(
+            final_state, reason, peer_addr, send_hangup=True
+        )
+
+    def handle_app_closing(self):
+        current_state = self.app_state
+        target_address = self._determine_hangup_target_address(current_state)
+
+        is_call_context_active = self._is_state_active_or_pending_call(current_state)
+        if target_address and is_call_context_active:
+            self.log_message("App closing during active/pending call. Attempting one-time HANGUP signal.")
+            self._cleanup_active_call_resources()
+            self.network_manager.send_packet(SignalType.HANGUP_SIGNAL.value, target_address)
 
     def _finalize_ui_after_hangup_delay(self):
         timer_id_before_clear = self.final_idle_status_timer_id
@@ -1091,14 +1089,8 @@ class VoiceChatApp:
         self.call_request_ack_timer_id = None 
         if self.app_state == AppState.CALL_INITIATING_REQUEST:
             peer_addr_attempted = self.peer_address_for_call_attempt if self.peer_address_for_call_attempt else ("未知对方", 0)
-            self.log_message(f"呼叫请求至 {peer_addr_attempted[0]} 的ACK超时。")
-            
-            self._transition_to_call_ended_state(
-                AppState.CALL_ENDED_REQUEST_FAILED,
-                f"呼叫请求失败 ({peer_addr_attempted[0]}) - 无应答",
-                peer_address_tuple=peer_addr_attempted,
-                cleanup_resources=False 
-            )
+            reason = f"呼叫请求失败 ({peer_addr_attempted[0]}) - 无应答"
+            self.handle_call_error(reason, peer_addr_attempted)
         else:
             self.log_message(f"呼叫请求ACK超时，但状态为 {self.app_state.name}。忽略。")
 
@@ -1107,7 +1099,7 @@ class VoiceChatApp:
 
         if not self.current_hangup_target_address or self.app_state == AppState.CALL_ENDED_APP_CLOSING:
             self.log_message(f"挂断/拒绝ACK超时，但无重试目标 ({self.current_hangup_target_address}) 或应用关闭。停止静默重试。")
-            if self.current_hangup_target_address: # Ensure cleared if somehow still set
+            if self.current_hangup_target_address:
                 self.current_hangup_target_address = None
                 self.pending_call_rejection_ack_address = None
             return
@@ -1181,14 +1173,14 @@ class VoiceChatApp:
             
             if is_relevant_ended_state:
 
-                if self.final_idle_status_timer_id is None: # Check if timer has already run or was never relevant
+                if self.final_idle_status_timer_id is None:
                     self.log_message(f"挂断ACK已收到。之前的3秒转换IDLE定时器已过或不适用。"
                                      f"主动从 {self.app_state.name} 转换到 IDLE。")
                     self._simple_reset_call_vars_and_set_state(
-                        "", # Reason determined by IDLE state handler
+                        "",
                         AppState.IDLE,
                         acked_peer_addr,
-                        cancel_active_hangup_retries=True # Already done by clearing targets
+                        cancel_active_hangup_retries=True
                     )
         else:
             self.log_message(f"收到来自 {addr} 的挂断/拒绝ACK，但与当前静默重试目标 "
@@ -1239,45 +1231,31 @@ class VoiceChatApp:
             self.log_message(f"发送挂断ACK至 {addr} 失败 (NetworkManager)", is_warning=True)
 
         is_relevant_peer_hangup = False
-        current_call_peer_addr = None
-
-        if self.app_state in [
-            AppState.CALL_INITIATING_REQUEST, AppState.CALL_OUTGOING_WAITING_ACCEPTANCE,
-            AppState.IN_CALL, AppState.CALL_INCOMING_RINGING
-        ]:
-            current_call_peer_addr = self.peer_full_address if self.peer_full_address else self.peer_address_for_call_attempt
-            if current_call_peer_addr and addr == current_call_peer_addr:
-                is_relevant_peer_hangup = True
-            elif self.app_state == AppState.CALL_OUTGOING_WAITING_ACCEPTANCE and \
-                 current_call_peer_addr and addr[0] == current_call_peer_addr[0]:
-                 self.log_message(f"HANGUP from peer IP {addr[0]} but port differs ({addr[1]} vs expected {current_call_peer_addr[1]}). "
-                                  f"Treating as relevant for CALL_OUTGOING_WAITING_ACCEPTANCE.", is_warning=True)
-                 is_relevant_peer_hangup = True
+        current_call_peer_addr = self._determine_hangup_target_address(self.app_state)
+        
+        if current_call_peer_addr and addr == current_call_peer_addr:
+            is_relevant_peer_hangup = True
+        elif self.app_state == AppState.CALL_OUTGOING_WAITING_ACCEPTANCE and \
+             current_call_peer_addr and addr[0] == current_call_peer_addr[0]:
+             self.log_message(f"HANGUP from peer IP {addr[0]} but port differs ({addr[1]} vs expected {current_call_peer_addr[1]}). "
+                              f"Treating as relevant for CALL_OUTGOING_WAITING_ACCEPTANCE.", is_warning=True)
+             is_relevant_peer_hangup = True
         elif self.current_hangup_target_address and addr == self.current_hangup_target_address:
             self.log_message(f"收到对方 {addr} 的HANGUP，而我方正在后台静默重试对该目标的挂断/拒绝。处理为对方挂断。")
             is_relevant_peer_hangup = True
         
         if is_relevant_peer_hangup:
-            self._play_notification_sound(SOUND_PEER_HANGUP)
             reason_for_hangup = f"{STATUS_PEER_HUNG_UP} ({addr[0]})"
 
-            if self.app_state == AppState.CALL_OUTGOING_WAITING_ACCEPTANCE or \
-               self.app_state == AppState.CALL_INITIATING_REQUEST:
-                reason_for_hangup = f"{STATUS_PEER_REJECTED} ({addr[0]})" 
-                self.log_message(f"对方 {addr} 拒绝/取消了呼叫 (状态: {self.app_state.name})。")
-            elif self.app_state == AppState.IN_CALL:
-                self.log_message(f"对方 {addr} 在通话中挂断。")
+            if self.app_state in [AppState.CALL_OUTGOING_WAITING_ACCEPTANCE, AppState.CALL_INITIATING_REQUEST]:
+                reason_for_hangup = f"{STATUS_PEER_REJECTED} ({addr[0]})"
             elif self.app_state == AppState.CALL_INCOMING_RINGING:
                 reason_for_hangup = f"对方 ({addr[0]}) 已取消呼叫"
-                self.log_message(f"来电者 {addr} 在振铃期间挂断 (呼叫被取消)。")
-            elif self.current_hangup_target_address and addr == self.current_hangup_target_address:
-                 self.log_message(f"对方 {addr} 也发送了挂断信号，在我方后台尝试终止时。标记为对方挂断。")
-
-
+            
             if self.master.winfo_exists():
-                 self.master.after(0, self.hang_up_call, True, False, reason_for_hangup)
+                 self.master.after(0, self.handle_peer_hangup, addr, reason_for_hangup)
             else:
-                 self.hang_up_call(True, False, reason_for_hangup)
+                 self.handle_peer_hangup(addr, reason_for_hangup)
         else:
             self.log_message(f"已发送ACK至 {addr}。但收到的挂断信号与当前通话 "
                              f"({current_call_peer_addr[0] if current_call_peer_addr else '无预期'}) 无关，或应用状态 "
@@ -1431,6 +1409,8 @@ class VoiceChatApp:
                         break 
 
                     packet_to_send = struct.pack("!I", self.send_sequence_number) + audio_data
+                    # Send the packet twice as a simple forward error correction (FEC) mechanism
+                    # to mitigate packet loss over UDP.
                     self.network_manager.send_packet(packet_to_send, self.peer_full_address)
                     self.network_manager.send_packet(packet_to_send, self.peer_full_address) 
 
@@ -1443,7 +1423,7 @@ class VoiceChatApp:
                         if read_error_count >= MIC_READ_MAX_ERRORS:
                             self.log_message("麦克风连续读取错误过多，终止呼叫。", is_error=True)
                             if self.master.winfo_exists():
-                                self.master.after(0, self.hang_up_call, False, True, "麦克风连续读取错误")
+                                self.master.after(0, self.handle_call_error, "麦克风连续读取错误", self.peer_full_address)
                             break 
                         time.sleep(0.05) 
                     else:
@@ -1455,7 +1435,7 @@ class VoiceChatApp:
                         self.log_message(log_msg, is_error=True)
                         traceback.print_exc()
                         if self.master.winfo_exists():
-                            self.master.after(0, self.hang_up_call, False, True, f"音频发送未知错误: {e_read_send}")
+                            self.master.after(0, self.handle_call_error, f"音频发送未知错误: {e_read_send}", self.peer_full_address)
                     else:
                          self.log_message(f"{log_msg} (当前状态: {self.app_state.name})", is_error=True)
                          traceback.print_exc()
@@ -1482,12 +1462,7 @@ class VoiceChatApp:
     def _perform_background_cleanup(self, original_state_on_close):
         self.log_message("后台清理线程已启动。")
 
-        is_call_context_active = self._is_state_active_or_pending_call(original_state_on_close) or \
-                                 (self.current_hangup_target_address is not None)
-
-        if is_call_context_active:
-            self.log_message("应用程序关闭时通话/呼叫仍处于活动状态，发送最后的挂断信号。")
-            self.hang_up_call(is_app_closing=True, reason="应用程序关闭")
+        self.handle_app_closing()
 
         if self.send_thread and self.send_thread.is_alive():
             self.log_message("关闭：等待发送线程停止...")
