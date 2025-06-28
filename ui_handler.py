@@ -1,7 +1,4 @@
-# ui_handler.py (已修复)
-
 from __future__ import annotations
-import customtkinter as ctk
 from models import AppState
 from config import *
 from typing import TYPE_CHECKING
@@ -69,7 +66,7 @@ class UIStateHandler:
         status_message = reason or "公网地址获取失败"
         if self.controller.audio_manager.is_initialized():
             status_message = "公网IP获取失败, 但仍可尝试呼叫/接收。" if self.ui_manager.is_peer_info_valid() else "公网IP获取失败, 且无远端信息。"
-        return {"status_message": status_message, "status_color": COLOR_STATUS_ERROR, "peer_entry_enabled": True, "parse_btn_enabled": True, "call_btn_state": "normal" if self.ui_manager.is_peer_info_valid() else "disabled"}
+        return {"status_message": status_message, "status_color": COLOR_STATUS_ERROR, "parse_btn_enabled": True, "call_btn_state": "normal" if self.ui_manager.is_peer_info_valid() else "disabled"}
 
     def update_ui_for_idle_state(self, *args):
         status_message = STATUS_WAITING_FOR_REMOTE_INFO
@@ -78,13 +75,13 @@ class UIStateHandler:
             status_message = STATUS_READY_TO_CALL_OR_RECEIVE
             if self.controller.audio_manager.is_initialized() and self.controller.is_running_main_op:
                 call_btn_state = "normal"
-        return {"status_message": status_message, "status_color": COLOR_STATUS_INFO, "peer_entry_enabled": True, "parse_btn_enabled": True, "call_btn_state": call_btn_state}
+        return {"status_message": status_message, "status_color": COLOR_STATUS_INFO, "parse_btn_enabled": True, "call_btn_state": call_btn_state}
 
     def update_ui_for_call_active_states_base(self, peer_address_tuple, status_template, status_color, packet_indicator_color=None):
         peer_name = self.get_peer_display_name_for_ui(peer_address_tuple)
         return {
             "call_btn_text": "挂断", "call_btn_fg_color": COLOR_BUTTON_REJECT_BG, "call_btn_hover_color": COLOR_BUTTON_REJECT_HOVER_BG,
-            "call_btn_state": "normal", "peer_entry_enabled": False, "parse_btn_enabled": False,
+            "call_btn_state": "normal", "parse_btn_enabled": False,
             "status_message": status_template.format(peer_display_name=peer_name), "status_color": status_color,
             "packet_indicator_color_override": packet_indicator_color
         }
@@ -104,7 +101,7 @@ class UIStateHandler:
             self.ui_manager.set_peer_port_entry(str(peer_addr[1]))
             
         peer_name = self.get_peer_display_name_for_ui(peer_addr)
-        return {"status_message": f"收到来自 {peer_name} 的呼叫", "status_color": COLOR_STATUS_INFO, "peer_entry_enabled": False, "parse_btn_enabled": False}
+        return {"status_message": f"收到来自 {peer_name} 的呼叫", "status_color": COLOR_STATUS_INFO, "parse_btn_enabled": False}
 
     def update_ui_for_call_terminating_self_initiated_state(self, reason, peer_addr, *args):
         return self.update_ui_for_call_ended_state(reason or f"{STATUS_LOCALLY_HUNG_UP} ({self.get_peer_display_name_for_ui(peer_addr)})", peer_addr, *args)
@@ -124,10 +121,10 @@ class UIStateHandler:
         elif current_state in [AppState.CALL_ENDED_ERROR, AppState.CALL_ENDED_REQUEST_FAILED]: status_color = COLOR_STATUS_ERROR
         
         can_call_again = self.ui_manager.is_peer_info_valid() and self.controller.audio_manager.is_initialized() and self.controller.is_running_main_op
-        return {"peer_entry_enabled": True, "parse_btn_enabled": True, "status_message": reason or "通话已结束", "status_color": status_color, "call_btn_state": "normal" if can_call_again else "disabled"}
+        return {"parse_btn_enabled": True, "status_message": reason or "通话已结束", "status_color": status_color, "call_btn_state": "normal" if can_call_again else "disabled"}
 
     def update_ui_for_call_ended_app_closing_state(self, *args):
-        return {"status_message": "程序正在关闭...", "status_color": COLOR_STATUS_INFO, "call_btn_state": "disabled", "peer_entry_enabled": False, "parse_btn_enabled": False}
+        return {"status_message": "程序正在关闭...", "status_color": COLOR_STATUS_INFO, "call_btn_state": "disabled", "parse_btn_enabled": False}
         
     def update_ui_for_unknown_state(self, *args):
         self.controller.log_message(f"警告: 未知的UI状态处理: {self.state_manager.app_state.name}", is_warning=True)

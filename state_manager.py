@@ -29,7 +29,6 @@ class CallStateManager:
         self.on_state_changed = state_change_callback
         self.log = log_callback
 
-        # --- State Variables ---
         self.app_state: AppState = AppState.STARTING
         self.peer_full_address: Optional[Tuple[str, int]] = None
         self.peer_address_for_call_attempt: Optional[Tuple[str, int]] = None
@@ -43,7 +42,6 @@ class CallStateManager:
         self.peer_wants_to_receive_audio: bool = True
         self.my_speaker_switch_is_on: bool = True
 
-        # --- Timer IDs ---
         self.call_request_ack_timer_id: Optional[str] = None
         self.hangup_ack_timer_id: Optional[str] = None
         self.final_idle_status_timer_id: Optional[str] = None

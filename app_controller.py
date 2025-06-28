@@ -99,27 +99,35 @@ class AppController:
             return
 
         if network_init_success:
-            self.log_message("开始NAT开放性测试...")
-            nat_test_passed = self.network_manager.check_nat_openness_for_unsolicited_responses()
-            if not nat_test_passed:
-                self.log_message("首次NAT开放性测试失败。将在5秒后重试一次。", is_warning=True)
-                time.sleep(5)
-                self.log_message("正在重试NAT开放性测试...")
-                nat_test_passed = self.network_manager.check_nat_openness_for_unsolicited_responses()
-            
-            self.can_reliably_receive_calls = nat_test_passed
-            self.log_message(f"NAT开放性测试完成，最终结果: {self.can_reliably_receive_calls}")
-            
             self.is_running_main_op = True
             if self.master.winfo_exists():
                 self.master.after(0, lambda: self.ui_manager.set_local_ip_port_display(self.network_manager.public_ip, str(self.network_manager.public_port)))
                 self.master.after(0, self.generate_and_update_feature_code)
                 self.master.after(0, lambda: self.state_manager.set_app_state(AppState.IDLE, "初始化完成，应用已就绪。"))
+
+            threading.Thread(target=self._perform_nat_test_in_background, daemon=True, name="NatTestThread").start()
         else:
             if self.master.winfo_exists():
                 error_reason = network_msg or "获取公网IP或启动监听失败，请检查网络。"
                 self.master.after(0, lambda: self.state_manager.set_app_state(AppState.GETTING_PUBLIC_IP_FAILED, error_reason))
                 self.master.after(0, lambda: self.ui_manager.set_local_ip_port_display(self.network_manager.public_ip or "获取失败", "N/A"))
+
+    def _perform_nat_test_in_background(self):
+        self.log_message("开始后台NAT开放性测试...")
+        nat_test_passed = self.network_manager.check_nat_openness_for_unsolicited_responses()
+        if not nat_test_passed:
+            self.log_message("首次NAT开放性测试失败。将在5秒后重试一次。", is_warning=True)
+            time.sleep(5)
+            self.log_message("正在重试NAT开放性测试...")
+            nat_test_passed = self.network_manager.check_nat_openness_for_unsolicited_responses()
+        
+        self.can_reliably_receive_calls = nat_test_passed
+        self.log_message(f"后台NAT测试完成，最终结果: {self.can_reliably_receive_calls}")
+
+        if self.master.winfo_exists():
+            self.master.after(0, lambda: self.ui_handler.update_ui_elements_for_state(
+                self.state_manager.app_state, "NAT test completed", None, None
+            ))
 
     def on_closing(self):
         if self._is_closing: return

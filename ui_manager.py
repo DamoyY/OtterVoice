@@ -30,7 +30,8 @@ class UIManager:
         self.log_callback = log_callback
         self.app = app_instance
         self._font_loaded_path = None
-        
+        self.peer_ip = None
+        self.peer_port = None
         self.log_callback(f"尝试配置字体: '{DESIRED_FONT_FAMILY}'. 若失败则回退到 '{DEFAULT_FALLBACK_FONT}'.")
 
         local_font_path = resource_path(DESIRED_FONT_FILENAME)
@@ -42,7 +43,7 @@ class UIManager:
                 ret = gdi32.AddFontResourceW(local_font_path)
                 if ret > 0:
                     self.log_callback(f"Windows: 成功调用 AddFontResourceW 为 '{local_font_path}'. 返回: {ret} (加载的字体数).")
-                    self._font_loaded_path = local_font_path # 保存路径以便卸载
+                    self._font_loaded_path = local_font_path
                     user32.SendMessageW(HWND_BROADCAST, WM_FONTCHANGE, 0, 0)
                     font_successfully_registered = True
                 else:
@@ -150,9 +151,11 @@ class UIManager:
         peer_title = ctk.CTkLabel(self.peer_frame, text="远端", font=self.FONT_TITLE, anchor="center")
         peer_title.grid(row=0, column=0, columnspan=2, pady=(0,38), sticky="ew")
         self.lbl_remote_ip_text = ctk.CTkLabel(self.peer_frame, text="IP 地址:", font=self.FONT_LABEL)
-        self.ent_peer_ip = ctk.CTkEntry(self.peer_frame, font=self.FONT_LABEL, placeholder_text="可由特征码解析")
+
+        self.lbl_peer_ip = ctk.CTkLabel(self.peer_frame, text="N/A", anchor="w", font=self.FONT_LABEL)
         self.lbl_remote_port_text = ctk.CTkLabel(self.peer_frame, text="端口号:", font=self.FONT_LABEL)
-        self.ent_peer_port = ctk.CTkEntry(self.peer_frame, font=self.FONT_LABEL, placeholder_text="可由特征码解析")
+        self.lbl_peer_port = ctk.CTkLabel(self.peer_frame, text="N/A", anchor="w", font=self.FONT_LABEL)
+        
         self.btn_parse_feature_code = ctk.CTkButton(self.peer_frame, text="粘贴一次性特征码", width=200, font=self.FONT_LABEL, height=32)
         current_row_main = 2
 
@@ -256,8 +259,6 @@ class UIManager:
 
     def _assign_callbacks(self):
         self.lbl_feature_code.bind("<Button-1>", lambda e: self.app_callbacks["ui_on_copy_feature_code"]())
-        self.ent_peer_ip.bind("<KeyRelease>", lambda event: self.app_callbacks["ui_on_peer_info_changed"]())
-        self.ent_peer_port.bind("<KeyRelease>", lambda event: self.app_callbacks["ui_on_peer_info_changed"]())
         self.btn_parse_feature_code.configure(command=self.app_callbacks["ui_on_paste_feature_code"])
         self.btn_call_hangup.configure(command=self.app_callbacks["ui_on_call_hangup_button_clicked"])
         self.btn_accept_call.configure(command=self.app_callbacks["ui_on_accept_call"])
@@ -277,8 +278,8 @@ class UIManager:
         dev_widgets = [
             self.lbl_local_ip_text, self.lbl_public_ip,
             self.lbl_local_port_text, self.lbl_public_port,
-            self.lbl_remote_ip_text, self.ent_peer_ip,
-            self.lbl_remote_port_text, self.ent_peer_port
+            self.lbl_remote_ip_text, self.lbl_peer_ip,
+            self.lbl_remote_port_text, self.lbl_peer_port
         ]
         for widget in dev_widgets:
             if widget.winfo_exists() and widget.winfo_ismapped():
@@ -303,10 +304,10 @@ class UIManager:
 
         if dev_mode_enabled:
             self.lbl_remote_ip_text.grid(row=pf_current_row, column=0, sticky="w", padx=5, pady=2)
-            self.ent_peer_ip.grid(row=pf_current_row, column=1, sticky="ew", padx=5, pady=2)
+            self.lbl_peer_ip.grid(row=pf_current_row, column=1, sticky="ew", padx=5, pady=2)
             pf_current_row += 1
             self.lbl_remote_port_text.grid(row=pf_current_row, column=0, sticky="w", padx=5, pady=2)
-            self.ent_peer_port.grid(row=pf_current_row, column=1, sticky="ew", padx=5, pady=2)
+            self.lbl_peer_port.grid(row=pf_current_row, column=1, sticky="ew", padx=5, pady=2)
 
         if dev_mode_enabled:
             self.log_display_frame.configure(height=150) 
@@ -348,26 +349,20 @@ class UIManager:
             self.master.after(0, self._set_label_text_threadsafe, self.lbl_feature_code, feature_code_text)
 
     def get_peer_ip_entry(self):
-        return self.ent_peer_ip.get() if hasattr(self, 'ent_peer_ip') and self.ent_peer_ip.winfo_exists() else ""
+        return self.peer_ip or ""
 
     def get_peer_port_entry(self):
-        return self.ent_peer_port.get() if hasattr(self, 'ent_peer_port') and self.ent_peer_port.winfo_exists() else ""
+        return self.peer_port or ""
 
     def set_peer_ip_entry(self, ip):
-        if hasattr(self, 'ent_peer_ip') and self.ent_peer_ip.winfo_exists():
-            current_state = self.ent_peer_ip.cget("state")
-            if current_state == "disabled": self.ent_peer_ip.configure(state="normal")
-            self.ent_peer_ip.delete(0, "end")
-            self.ent_peer_ip.insert(0, ip)
-            if current_state == "disabled": self.ent_peer_ip.configure(state="disabled")
+        self.peer_ip = ip
+        if hasattr(self, 'lbl_peer_ip') and self.master.winfo_exists():
+            self.master.after(0, self._set_label_text_threadsafe, self.lbl_peer_ip, ip)
 
     def set_peer_port_entry(self, port):
-        if hasattr(self, 'ent_peer_port') and self.ent_peer_port.winfo_exists():
-            current_state = self.ent_peer_port.cget("state")
-            if current_state == "disabled": self.ent_peer_port.configure(state="normal")
-            self.ent_peer_port.delete(0, "end")
-            self.ent_peer_port.insert(0, str(port))
-            if current_state == "disabled": self.ent_peer_port.configure(state="disabled")
+        self.peer_port = str(port)
+        if hasattr(self, 'lbl_peer_port') and self.master.winfo_exists():
+            self.master.after(0, self._set_label_text_threadsafe, self.lbl_peer_port, str(port))
 
     def update_status_label(self, message, color=None):
         if not (hasattr(self, 'lbl_status') and self.lbl_status.winfo_exists()):
@@ -453,12 +448,8 @@ class UIManager:
                 text_color=text_color,
                 state=state
             )
-    
-    def configure_peer_input_fields(self, ip_entry_state, port_entry_state, parse_btn_state):
-        if hasattr(self, 'ent_peer_ip') and self.ent_peer_ip.winfo_exists():
-            self.ent_peer_ip.configure(state=ip_entry_state)
-        if hasattr(self, 'ent_peer_port') and self.ent_peer_port.winfo_exists():
-            self.ent_peer_port.configure(state=port_entry_state)
+
+    def configure_peer_input_fields(self, parse_btn_state):
         if hasattr(self, 'btn_parse_feature_code') and self.btn_parse_feature_code.winfo_exists():
             self.btn_parse_feature_code.configure(state=parse_btn_state)
 
@@ -507,14 +498,10 @@ class UIManager:
             state=config.get("call_btn_state", "disabled")
         )
 
-        peer_entry_enabled = config.get("peer_entry_enabled", False)
         parse_btn_enabled = config.get("parse_btn_enabled", False)
         self.configure_peer_input_fields(
-            ip_entry_state="normal" if peer_entry_enabled else "disabled",
-            port_entry_state="normal" if peer_entry_enabled else "disabled",
             parse_btn_state="normal" if parse_btn_enabled else "disabled"
         )
-
         self.update_status_label(
             message=config.get("status_message", "未知状态"),
             color=config.get("status_color")
@@ -524,6 +511,4 @@ class UIManager:
         )
 
     def is_peer_info_valid(self):
-        ip = self.get_peer_ip_entry()
-        port = self.get_peer_port_entry()
-        return bool(ip and port and port.isdigit())
+        return bool(self.peer_ip and self.peer_port and str(self.peer_port).isdigit())

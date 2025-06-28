@@ -117,7 +117,7 @@ class FeatureCodeManager:
 
             ip, port_str = plain_text.split(':', 1)
             port = int(port_str)
-            socket.inet_aton(ip) # Validate IP
+            socket.inet_aton(ip)
             if not (1 <= port <= 65535):
                 raise ValueError("端口号超出范围 (1-65535)")
             return ip, port, None
