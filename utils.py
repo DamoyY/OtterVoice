@@ -4,6 +4,7 @@ import base64
 import socket
 import sys
 import os
+import binascii
 
 class SingleThreadPreciseTimer:
     def __init__(self, master, name="PreciseTimerThread"):
@@ -21,7 +22,7 @@ class SingleThreadPreciseTimer:
     def _run(self):
         while True:
             callback_to_run = None
-            args_to_run = None
+            args_to_run = ()
 
             with self._lock:
                 if self._thread_should_stop:
@@ -37,7 +38,7 @@ class SingleThreadPreciseTimer:
                 if wait_duration <= 0:
                     if self._active:
                         callback_to_run = self._callback
-                        args_to_run = self._args if self._args is not None else []
+                        args_to_run = self._args if self._args is not None else ()
 
                         self._active = False 
                         self._target_time_monotonic = None
@@ -120,18 +121,16 @@ class FeatureCodeManager:
             if not (1 <= port <= 65535):
                 raise ValueError("端口号超出范围 (1-65535)")
             return ip, port, None
+
+        except (binascii.Error, UnicodeDecodeError) as e:
+            return None, None, f"格式错误: {e}"
         except ValueError as e:
             return None, None, f"内容无效: {e}"
-        except (base64.binascii.Error, UnicodeDecodeError) as e:
-            return None, None, f"格式错误: {e}"
         except (socket.error, OSError) as e:
              return None, None, f"IP地址无效: {e}"
         except Exception as e:
             return None, None, f"未知解析错误: {e}"
 
 def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
+    base_path = getattr(sys, '_MEIPASS', os.path.abspath("."))
     return os.path.join(base_path, relative_path)

@@ -5,11 +5,12 @@ import os
 import struct
 import traceback
 from config import *
+from typing import Callable, Optional, Tuple
 
 class NetworkManager:
-    def __init__(self, log_callback, data_received_callback):
+    def __init__(self, log_callback, data_received_callback: Optional[Callable[[bytes, Tuple[str, int]], None]] = None):
         self.log_callback = log_callback
-        self.data_received_callback = data_received_callback
+        self.data_received_callback: Optional[Callable[[bytes, Tuple[str, int]], None]] = data_received_callback
         self.udp_socket = None
         self.is_listening = False
         self.receive_thread = None
@@ -17,6 +18,7 @@ class NetworkManager:
         self.local_port = 0
         self.public_ip = None
         self.public_port = None
+        self.is_cone_nat: Optional[bool] = None
 
     def _find_available_random_port(self, host="0.0.0.0", start_range=49152, end_range=65535, max_tries=RANDOM_PORT_MAX_TRIES):
         for _ in range(max_tries):
@@ -35,7 +37,7 @@ class NetworkManager:
         return os.urandom(12)
 
     def _stun_create_request(self, transaction_id, include_change_request=False):
-        msg_type = 0x0001  # Binding Request
+        msg_type = 0x0001
         msg_length = 0
         
         attributes_payload = b''
@@ -43,48 +45,35 @@ class NetworkManager:
         if include_change_request:
             change_request_type = 0x0003
             change_request_length = 4
-            change_request_value = 0x00000006 # Change IP and Port
+            change_request_value = 0x00000006
             attributes_payload += struct.pack("!HH L", change_request_type, change_request_length, change_request_value)
-            msg_length += (4 + change_request_length) # type + length + value
+            msg_length += (4 + change_request_length)
 
         header = struct.pack("!HHL12s", msg_type, msg_length, 0x2112A442, transaction_id)
         return header + attributes_payload
     
     def check_nat_openness_for_unsolicited_responses(self, stun_host=DEFAULT_STUN_HOST, stun_port=DEFAULT_STUN_PORT):
         self.log_callback(f"STUN_TEST_OPENNESS: Testing NAT openness with CHANGE-REQUEST to {stun_host}:{stun_port}...")
-        if self.udp_socket is None or self.udp_socket._closed:
+        if self.udp_socket is None or self.udp_socket.fileno() == -1:
             self.log_callback(f"STUN_TEST_OPENNESS: Main socket not initialized or closed. Test failed.", is_warning=True)
             return False
 
         original_timeout = None
         try:
             original_timeout = self.udp_socket.gettimeout()
-            self.udp_socket.settimeout(1.0) # Shorter timeout for this test
+            self.udp_socket.settimeout(2.0)
 
             transaction_id = self._stun_generate_transaction_id()
             request_message = self._stun_create_request(transaction_id, include_change_request=True)
 
             self.udp_socket.sendto(request_message, (stun_host, stun_port))
-
             data, addr = self.udp_socket.recvfrom(1024)
 
-            if addr[0] != stun_host: # Or check against resolved IP of stun_host
-                self.log_callback(f"STUN_TEST_OPENNESS: Received response from unexpected IP {addr[0]} (expected {stun_host}). Assuming test passed as *a* response was received.", is_warning=True)
-            
-            if len(data) >= 20: # Basic check for STUN message
-                msg_type_resp, _, magic_cookie_resp, transaction_id_resp = struct.unpack("!HHL12s", data[:20])
-                if magic_cookie_resp == 0x2112A442 and transaction_id_resp == transaction_id:
-                    self.log_callback(f"STUN_TEST_OPENNESS: Received valid STUN response (type 0x{msg_type_resp:04X}) from {addr}. NAT appears to allow response. Test PASSED.")
-                    return True
-                else:
-                    self.log_callback(f"STUN_TEST_OPENNESS: Received data from {addr}, but not a valid STUN response matching transaction. Test FAILED.", is_warning=True)
-                    return False
-            else:
-                self.log_callback(f"STUN_TEST_OPENNESS: Received short data packet from {addr}. Test FAILED.", is_warning=True)
-                return False
+            self.log_callback(f"STUN_TEST_OPENNESS: Received a response from {addr}. NAT appears to be a Cone type. Test PASSED.")
+            return True
 
         except socket.timeout:
-            self.log_callback("STUN_TEST_OPENNESS: Request timed out. NAT might be restrictive. Test FAILED.", is_warning=True)
+            self.log_callback("STUN_TEST_OPENNESS: Request timed out. NAT is likely Symmetric. Test FAILED.", is_warning=True)
             return False
         except socket.gaierror as e:
             self.log_callback(f"STUN_TEST_OPENNESS: Failed to resolve STUN server {stun_host} ({e}). Test FAILED.", is_error=True)
@@ -96,10 +85,9 @@ class NetworkManager:
             self.log_callback(f"STUN_TEST_OPENNESS: Unknown exception: {e}. Test FAILED.", is_error=True)
             return False
         finally:
-            if original_timeout is not None and self.udp_socket and not self.udp_socket._closed:
+            if original_timeout is not None and self.udp_socket and self.udp_socket.fileno() != -1:
                 try: self.udp_socket.settimeout(original_timeout)
                 except: pass
-        return False # Default fail
 
     def _stun_parse_response(self, data, sent_transaction_id):
         STUN_MAGIC_COOKIE = 0x2112A442
@@ -111,13 +99,13 @@ class NetworkManager:
 
         if magic_cookie != STUN_MAGIC_COOKIE:
             self.log_callback("STUN: 响应magic cookie无效.")
-
+        
         if transaction_id_resp != sent_transaction_id:
             self.log_callback("STUN: Transaction ID不匹配. (继续处理，某些服务器可能行为不同)")
 
-        if msg_type == 0x0101: # Binding Success Response
+        if msg_type == 0x0101: # Success response
             pass
-        elif msg_type == 0x0111: # Binding Error Response
+        elif msg_type == 0x0111: # Error response
             self.log_callback("STUN: 服务器返回错误响应.")
             return None, None
         else:
@@ -166,22 +154,20 @@ class NetworkManager:
 
     def get_public_address_with_stun(self, stun_host=DEFAULT_STUN_HOST, stun_port=DEFAULT_STUN_PORT):
         self.log_callback(f"尝试通过 STUN 服务器 {stun_host}:{stun_port} 获取公网地址...")
-        if self.udp_socket is None or self.udp_socket._closed:
+        if self.udp_socket is None or self.udp_socket.fileno() == -1:
             self.log_callback(f"STUN: 主套接字未初始化或已关闭。无法执行STUN。")
             return None, None
 
         original_timeout = None
         try:
             original_timeout = self.udp_socket.gettimeout()
-            self.udp_socket.settimeout(1.0)
+            self.udp_socket.settimeout(2.0)
 
             transaction_id = self._stun_generate_transaction_id()
             request_message = self._stun_create_request(transaction_id, include_change_request=False) 
 
             self.udp_socket.sendto(request_message, (stun_host, stun_port))
             data, addr = self.udp_socket.recvfrom(1024)
-
-            if original_timeout is not None: self.udp_socket.settimeout(original_timeout)
             
             public_ip, public_port = self._stun_parse_response(data, transaction_id)
 
@@ -201,7 +187,7 @@ class NetworkManager:
         except Exception as e:
             self.log_callback(f"STUN 查询发生未知异常: {e}")
         finally:
-            if original_timeout is not None and self.udp_socket and not self.udp_socket._closed:
+            if original_timeout is not None and self.udp_socket and self.udp_socket.fileno() != -1:
                 try: self.udp_socket.settimeout(original_timeout)
                 except: pass
         return None, None
@@ -214,7 +200,7 @@ class NetworkManager:
 
         self.log_callback(f"已自动选择本地监听端口: {self.local_port}")
 
-        if self.udp_socket and not self.udp_socket._closed:
+        if self.udp_socket and self.udp_socket.fileno() != -1:
             try: self.udp_socket.close()
             except Exception as e_close: self.log_callback(f"关闭旧套接字时出错: {e_close}")
         self.udp_socket = None
@@ -222,18 +208,29 @@ class NetworkManager:
         try:
             self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.udp_socket.bind(('0.0.0.0', self.local_port))
-            self.udp_socket.settimeout(1.0)
         except OSError as e:
             self.log_callback(f"主套接字绑定本地端口 {self.local_port} 失败: {e}", is_error=True)
             self._cleanup_socket()
             return False, f"启动失败: 端口 {self.local_port} 绑定失败"
 
         self.log_callback("正在获取公网地址 (STUN)...")
-        pub_ip, pub_port = self.get_public_address_with_stun()
-        self.public_ip, self.public_port = pub_ip, pub_port
 
-        if not (self.public_ip and self.public_port):
+        stun_result = self.get_public_address_with_stun()
+        if stun_result and len(stun_result) == 2:
+            self.public_ip, self.public_port = stun_result
+        else:
+            self.public_ip, self.public_port = None, None
+
+        if self.public_ip and self.public_port:
+            self.log_callback("获取到公网地址，现在测试NAT类型...")
+            self.is_cone_nat = self.check_nat_openness_for_unsolicited_responses()
+            if self.is_cone_nat:
+                self.log_callback("NAT类型测试结果：Cone NAT (良好)，应可接收来电。")
+            else:
+                self.log_callback("NAT类型测试结果：Symmetric NAT 或 防火墙限制 (较差)，可能无法接收来电。", is_warning=True)
+        else:
             self.log_callback("未能自动获取公网地址。可能仅限局域网通信。", is_warning=True)
+            self.is_cone_nat = False
 
         self.is_listening = True
         self.receive_thread = threading.Thread(target=self._receive_loop_target, daemon=True, name="ReceiveAudioThread")
@@ -247,11 +244,12 @@ class NetworkManager:
     def _receive_loop_target(self):
         self.log_callback("接收线程已启动。")
         while self.is_listening:
-            if self.udp_socket is None or self.udp_socket._closed:
-                if self.is_listening: # Only log if it was unexpected
+            if self.udp_socket is None or self.udp_socket.fileno() == -1:
+                if self.is_listening:
                     self.log_callback("接收线程：UDP套接字已关闭或未初始化，线程终止。", is_warning=True)
                 break
             try:
+                self.udp_socket.settimeout(1.0)
                 data, addr = self.udp_socket.recvfrom(MAX_PACKET_SIZE)
                 if not data: continue
 
@@ -261,7 +259,6 @@ class NetworkManager:
                     except Exception as e_cb:
                         self.log_callback(f"处理接收数据的回调函数中发生错误: {e_cb}", is_error=True)
                         traceback.print_exc()
-
 
             except socket.timeout:
                 continue
@@ -275,7 +272,7 @@ class NetworkManager:
         self.log_callback("接收线程已停止。")
 
     def send_packet(self, data, address):
-        if self.udp_socket and not self.udp_socket._closed and address:
+        if self.udp_socket and self.udp_socket.fileno() != -1 and address:
             try:
                 self.udp_socket.sendto(data, address)
                 return True
@@ -283,7 +280,7 @@ class NetworkManager:
                 self.log_callback(f"发送数据包至 {address} 时发生socket错误: {e_sock_send}", is_warning=True)
             except Exception as e_send:
                 self.log_callback(f"发送数据包至 {address} 时发生未知错误: {e_send}", is_warning=True)
-        elif not self.udp_socket or self.udp_socket._closed:
+        elif not self.udp_socket or self.udp_socket.fileno() == -1:
             self.log_callback(f"尝试发送数据包但套接字已关闭或未初始化。", is_warning=True)
         elif not address:
             self.log_callback(f"尝试发送数据包但目标地址为空。", is_warning=True)
@@ -293,7 +290,7 @@ class NetworkManager:
         if self.udp_socket:
             current_socket = self.udp_socket
             self.udp_socket = None
-            if not current_socket._closed:
+            if current_socket.fileno() != -1:
                 try:
                     current_socket.close()
                 except Exception as e:
@@ -308,7 +305,7 @@ class NetworkManager:
             if prev_is_listening:
                 self.log_callback("正在等待接收线程停止...")
             try:
-                self.receive_thread.join(timeout=0.5) 
+                self.receive_thread.join(timeout=1.5)
             except Exception as e_join:
                 self.log_callback(f"接收线程join时出错: {e_join}")
             if self.receive_thread and self.receive_thread.is_alive():
@@ -316,3 +313,4 @@ class NetworkManager:
         self.receive_thread = None
         self.public_ip = None
         self.public_port = None
+        self.is_cone_nat = None

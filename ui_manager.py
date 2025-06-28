@@ -5,6 +5,7 @@ import os
 import traceback
 import ctypes
 from ctypes import wintypes
+from models import AppState
 
 from config import *
 import config as config_module
@@ -135,14 +136,12 @@ class UIManager:
         self.lbl_local_port_text = ctk.CTkLabel(self.local_frame, text="端口号:", font=self.FONT_LABEL)
         self.lbl_public_port = ctk.CTkLabel(self.local_frame, text="N/A", anchor="w", font=self.FONT_LABEL)
         self.lbl_feature_code_text = ctk.CTkLabel(self.local_frame, text="一次性特征码:", font=self.FONT_LABEL)
-        self.lbl_feature_code_text = ctk.CTkLabel(self.local_frame, text="一次性特征码:", font=self.FONT_LABEL)
         self.feature_code_wrapper_frame = ctk.CTkFrame(self.local_frame, corner_radius=8, border_width=1, border_color=("gray75", "gray25"))
         self.feature_code_wrapper_frame.configure(height=32)
         self.feature_code_wrapper_frame.grid_propagate(False)
         self.feature_code_wrapper_frame.grid_columnconfigure(0, weight=1)
         self.lbl_feature_code = ctk.CTkLabel(self.feature_code_wrapper_frame, text="N/A", anchor="center", cursor="hand2", font=self.FONT_LABEL)
         self.lbl_feature_code.grid(row=0, column=0, sticky="ew", padx=5, pady=2)
-        self.lbl_feature_code.bind("<Button-1>", lambda e: self.app_callbacks["ui_on_copy_feature_code"]())
 
         self.peer_frame = ctk.CTkFrame(self.top_info_frame)
         self.peer_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0), pady=0)
@@ -152,11 +151,9 @@ class UIManager:
         peer_title.grid(row=0, column=0, columnspan=2, pady=(0,38), sticky="ew")
         self.lbl_remote_ip_text = ctk.CTkLabel(self.peer_frame, text="IP 地址:", font=self.FONT_LABEL)
         self.ent_peer_ip = ctk.CTkEntry(self.peer_frame, font=self.FONT_LABEL, placeholder_text="可由特征码解析")
-        self.ent_peer_ip.bind("<KeyRelease>", lambda event: self.app_callbacks["ui_on_peer_info_changed"]())
         self.lbl_remote_port_text = ctk.CTkLabel(self.peer_frame, text="端口号:", font=self.FONT_LABEL)
         self.ent_peer_port = ctk.CTkEntry(self.peer_frame, font=self.FONT_LABEL, placeholder_text="可由特征码解析")
-        self.ent_peer_port.bind("<KeyRelease>", lambda event: self.app_callbacks["ui_on_peer_info_changed"]())
-        self.btn_parse_feature_code = ctk.CTkButton(self.peer_frame, text="粘贴一次性特征码", width=200, command=self.app_callbacks["ui_on_paste_feature_code"], font=self.FONT_LABEL, height=32)
+        self.btn_parse_feature_code = ctk.CTkButton(self.peer_frame, text="粘贴一次性特征码", width=200, font=self.FONT_LABEL, height=32)
         current_row_main = 2
 
         status_title_label = ctk.CTkLabel(self.main_frame, text="通话状态", font=self.FONT_TITLE)
@@ -197,11 +194,10 @@ class UIManager:
 
         self.call_actions_row = current_row_main
         
-        self.btn_call_hangup = ctk.CTkButton(self.main_frame, text="呼叫", command=self.app_callbacks["ui_on_call_hangup_button_clicked"], state="disabled", font=self.FONT_LABEL)
+        self.btn_call_hangup = ctk.CTkButton(self.main_frame, text="呼叫", state="disabled", font=self.FONT_LABEL)
         self.default_button_color = self.btn_call_hangup.cget("fg_color")
         self.default_button_text_color = self.btn_call_hangup.cget("text_color")
         self.default_button_hover_color = self.btn_call_hangup.cget("hover_color")
-
 
         self.accept_reject_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         self.accept_reject_frame.grid_columnconfigure(0, weight=1)
@@ -210,7 +206,6 @@ class UIManager:
         self.btn_accept_call = ctk.CTkButton(
             self.accept_reject_frame,
             text="接听",
-            command=self.app_callbacks["ui_on_accept_call"],
             font=self.FONT_LABEL,
             fg_color=COLOR_BUTTON_ACCEPT_BG,
             hover_color=COLOR_BUTTON_ACCEPT_HOVER_BG,
@@ -221,7 +216,6 @@ class UIManager:
         self.btn_reject_call = ctk.CTkButton(
             self.accept_reject_frame,
             text="拒绝",
-            command=self.app_callbacks["ui_on_reject_call"],
             font=self.FONT_LABEL,
             fg_color=COLOR_BUTTON_REJECT_BG,
             hover_color=COLOR_BUTTON_REJECT_HOVER_BG,
@@ -240,15 +234,15 @@ class UIManager:
         mute_frame.grid_columnconfigure(2, weight=1)
         mute_frame.grid_columnconfigure(3, weight=0)
 
-        self.switch_mic_mute = ctk.CTkSwitch(mute_frame, text="麦克风: 开", command=self.app_callbacks["ui_on_toggle_mic"], font=self.FONT_LABEL)
+        self.switch_mic_mute = ctk.CTkSwitch(mute_frame, text="麦克风: 开", font=self.FONT_LABEL)
         self.switch_mic_mute.grid(row=0, column=0, padx=5, pady=5, sticky="w")
         self.switch_mic_mute.select()
 
-        self.switch_speaker_mute = ctk.CTkSwitch(mute_frame, text="扬声器: 开", command=self.app_callbacks["ui_on_toggle_speaker"], font=self.FONT_LABEL)
+        self.switch_speaker_mute = ctk.CTkSwitch(mute_frame, text="扬声器: 开", font=self.FONT_LABEL)
         self.switch_speaker_mute.grid(row=0, column=1, padx=5, pady=5, sticky="w")
         self.switch_speaker_mute.select()
         
-        self.dev_mode_switch = ctk.CTkSwitch(mute_frame, text="DEV 模式", command=self.app_callbacks["ui_on_toggle_dev_mode"], font=self.FONT_LABEL)
+        self.dev_mode_switch = ctk.CTkSwitch(mute_frame, text="DEV 模式", font=self.FONT_LABEL)
         self.dev_mode_switch.grid(row=0, column=3, padx=5, pady=5, sticky="e")
         current_row_main += 1
 
@@ -259,6 +253,18 @@ class UIManager:
         self.log_text = ctk.CTkTextbox(self.log_display_frame, state="disabled", wrap="word", font=self.FONT_TEXTBOX)
 
         self.update_dev_mode_visibility(False)
+
+    def _assign_callbacks(self):
+        self.lbl_feature_code.bind("<Button-1>", lambda e: self.app_callbacks["ui_on_copy_feature_code"]())
+        self.ent_peer_ip.bind("<KeyRelease>", lambda event: self.app_callbacks["ui_on_peer_info_changed"]())
+        self.ent_peer_port.bind("<KeyRelease>", lambda event: self.app_callbacks["ui_on_peer_info_changed"]())
+        self.btn_parse_feature_code.configure(command=self.app_callbacks["ui_on_paste_feature_code"])
+        self.btn_call_hangup.configure(command=self.app_callbacks["ui_on_call_hangup_button_clicked"])
+        self.btn_accept_call.configure(command=self.app_callbacks["ui_on_accept_call"])
+        self.btn_reject_call.configure(command=self.app_callbacks["ui_on_reject_call"])
+        self.switch_mic_mute.configure(command=self.app_callbacks["ui_on_toggle_mic"])
+        self.switch_speaker_mute.configure(command=self.app_callbacks["ui_on_toggle_speaker"])
+        self.dev_mode_switch.configure(command=self.app_callbacks["ui_on_toggle_dev_mode"])
 
     def update_dev_mode_visibility(self, dev_mode_enabled):
         target_height = INITIAL_WINDOW_HEIGHT
@@ -322,9 +328,6 @@ class UIManager:
                 self.log_display_frame.grid_remove()
             if self.main_frame.winfo_exists():
                 self.main_frame.grid_rowconfigure(self.log_display_frame_row, weight=0)
-
-        if "ui_force_peer_field_update" in self.app_callbacks:
-            self.app_callbacks["ui_force_peer_field_update"]()
 
     def log_to_ui_textbox(self, log_entry, is_dev_mode):
         if is_dev_mode and hasattr(self, 'log_text') and self.master.winfo_exists():
@@ -487,3 +490,40 @@ class UIManager:
             return True
         except Exception:
             return False
+            
+    def apply_ui_config(self, config, new_state):
+
+        if new_state == AppState.CALL_INCOMING_RINGING:
+            self.set_call_button_mode("accept_reject")
+        else:
+            self.set_call_button_mode("single")
+
+        self.configure_call_button(
+            text=config.get("call_btn_text", "呼叫"),
+            command=self.app_callbacks.get("ui_on_call_hangup_button_clicked"),
+            fg_color=config.get("call_btn_fg_color", self.default_button_color),
+            hover_color=config.get("call_btn_hover_color", self.default_button_hover_color),
+            text_color=config.get("call_btn_text_color", self.default_button_text_color),
+            state=config.get("call_btn_state", "disabled")
+        )
+
+        peer_entry_enabled = config.get("peer_entry_enabled", False)
+        parse_btn_enabled = config.get("parse_btn_enabled", False)
+        self.configure_peer_input_fields(
+            ip_entry_state="normal" if peer_entry_enabled else "disabled",
+            port_entry_state="normal" if peer_entry_enabled else "disabled",
+            parse_btn_state="normal" if parse_btn_enabled else "disabled"
+        )
+
+        self.update_status_label(
+            message=config.get("status_message", "未知状态"),
+            color=config.get("status_color")
+        )
+        self.update_packet_indicator(
+            color=config.get("packet_indicator_color_override")
+        )
+
+    def is_peer_info_valid(self):
+        ip = self.get_peer_ip_entry()
+        port = self.get_peer_port_entry()
+        return bool(ip and port and port.isdigit())

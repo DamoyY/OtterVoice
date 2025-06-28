@@ -65,7 +65,7 @@ class AudioManager:
 
         try:
             default_info = self.p.get_default_output_device_info()
-            target_device_index = default_info['index']
+            target_device_index = int(default_info['index'])
             final_device_info = self.p.get_device_info_by_index(target_device_index)
             device_name_log = self._decode_device_name(final_device_info['name'])
 
@@ -93,7 +93,7 @@ class AudioManager:
         self._safe_close_stream('audio_stream_in')
         try:
             device_info = self.p.get_default_input_device_info()
-            input_device_index = device_info['index']
+            input_device_index = int(device_info['index'])
             device_name = self._decode_device_name(device_info['name'])
             self.log_callback(f"尝试打开输入流: '{device_name}' (Index: {input_device_index})")
 
@@ -122,6 +122,7 @@ class AudioManager:
             self.log_callback("AudioManager: Input stream (self.audio_stream_in) is None, cannot read mic. Was open_input_stream successful?", is_warning=True)
             return None
 
+        current_stream_obj_id = "unknown"
         try:
             current_stream_obj_id = id(self.audio_stream_in) if self.audio_stream_in else "None"
             is_active = self.audio_stream_in.is_active() if self.audio_stream_in else False
@@ -174,6 +175,9 @@ class AudioManager:
 
     def close_input_stream(self):
         self._safe_close_stream('audio_stream_in')
+
+    def close_output_stream(self):
+        self._safe_close_stream('audio_stream_out')
 
     def terminate(self):
         self._safe_close_stream('audio_stream_in')
